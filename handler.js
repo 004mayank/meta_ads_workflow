@@ -96,12 +96,15 @@ async function handler(req, res) {
     try {
         console.log("Fetching Facebook Ads Insights...");
         const insights = await fetchInsights(FACEBOOK_API_URL, QUERY_PARAMS);
+        console.log("Formatting Facebook Ads Insights...");
         const formattedData = formatCampaignData({ data: insights });
+        console.log("Generating BQ Query...");
         const bigQueryInsertQuery = generateBigQueryInsertQuery(formattedData);
-        console.log("BigQuery Insert Query:", bigQueryInsertQuery);
+        // console.log("BigQuery Insert Query:", bigQueryInsertQuery);
 
+        console.log("Putting Data in BQ...")
         const webhookUrl = "https://asia-south1.api.boltic.io/service/webhook/temporal/v1.0/3c4a5387-c37e-4350-b364-f733b24933fa/workflows/execute/6031d8df-47be-4caf-9da1-3a20be7ec401/0.0.1/webhook";
-        const payload = { payload: { formattedData, bigQueryInsertQuery } };
+        const payload = { formattedData, bigQueryInsertQuery  };
 
         await axios.post(webhookUrl, payload, { headers: { "Content-Type": "application/json" } });
     } catch (error) {
