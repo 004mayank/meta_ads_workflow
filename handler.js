@@ -92,15 +92,20 @@ function generateBigQueryInsertQuery(inputRows) {
 }
 
 async function handler(req, res) {
+    res.status(200).json({ message: "Processing started" });
     try {
         console.log("Fetching Facebook Ads Insights...");
         const insights = await fetchInsights(FACEBOOK_API_URL, QUERY_PARAMS);
         const formattedData = formatCampaignData({ data: insights });
         const bigQueryInsertQuery = generateBigQueryInsertQuery(formattedData);
         console.log("BigQuery Insert Query:", bigQueryInsertQuery);
-        res.status(200).json({ formattedData, bigQueryInsertQuery });
+
+        const webhookUrl = "https://asia-south1.api.boltic.io/service/webhook/temporal/v1.0/3c4a5387-c37e-4350-b364-f733b24933fa/workflows/execute/6031d8df-47be-4caf-9da1-3a20be7ec401/0.0.1/webhook";
+        const payload = { payload: { formattedData, bigQueryInsertQuery } };
+
+        await axios.post(webhookUrl, payload, { headers: { "Content-Type": "application/json" } });
     } catch (error) {
-        res.status(500).json({ error: "Failed to fetch insights" });
+        console.error("Error:", error);
     }
 }
 
