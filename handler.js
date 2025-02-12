@@ -1,24 +1,107 @@
-export const handler = async (event, res) => {
-    try {
-        // Prepare the response JSON
-        const responseJson = {
-            message: "Hello World"
-        };
+import axios from "axios";
 
-        // Print the JSON response to stdout
-        console.log(JSON.stringify(responseJson));
-
-        // Set the response headers
-        res.setHeader('Content-Type', 'application/json');
-
-        // Send the response JSON
-        res.end(JSON.stringify(responseJson));
-    } catch (error) {
-        // Handle errors
-        console.error(error);
-        // Send an error response if needed
-        res.statusCode = 500;
-        res.setHeader('Content-Type', 'text/plain');
-        res.end('Internal Server Error');
-    }
+const FACEBOOK_API_URL = "https://graph.facebook.com/v19.0/act_1566078160589611/insights";
+const QUERY_PARAMS = {
+    level: "ad",
+    fields: "campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,impressions,clicks,spend,ctr,cpc,conversions",
+    breakdowns: "age,gender",
+    date_preset: "yesterday",
+    access_token: "EAAP0hyO4pgYBOZBCCnqLdFuZBsZBIXjsR7kDdbOgf9A2T3GeYs7nu1g7krpWuVs9ezlUqGdMJGlQZB1vJi11rmHtAm9AZCMBC7XNlZA2cQI7FZB6IpOZC3Bth7E0fK4GTpdZCwFZBxy3XWbHkgzZBZB8jZCYxkqpuLKOj6CV7cdvaE1lFZCZBbznTveQEY4lvqM"
 };
+
+async function fetchInsights(url, params, accumulatedData = []) {
+    try {
+        const response = await axios.get(url, { params });
+        const data = response.data;
+
+        accumulatedData.push(...data.data);
+
+        if (data.paging && data.paging.next) {
+            return fetchInsights(data.paging.next, {}, accumulatedData);
+        }
+
+        return accumulatedData;
+    } catch (error) {
+        console.error("Error fetching insights:", error);
+        throw error;
+    }
+}
+
+function formatCampaignData(result) {
+    const { data } = result;
+    return data.map(campaign => ({
+        meta_campaign_id: campaign?.campaign_id || "unknown_campaign_id",
+        meta_campaign_name: campaign?.campaign_name || "unknown_campaign_name",
+        meta_impressions: campaign?.impressions ? parseInt(campaign.impressions) : 0,
+        meta_clicks: campaign?.clicks ? parseInt(campaign.clicks) : 0,
+        meta_spent: campaign?.spend ? parseFloat(campaign.spend) : 0.0,
+        meta_ctr: campaign?.ctr ? parseFloat(campaign.ctr) : 0.0,
+        meta_cpc: campaign?.cpc ? parseFloat(campaign.cpc) : 0.0,
+        meta_cpm: campaign?.cpm ? parseFloat(campaign.cpm) : 0.0,
+        meta_conversions: campaign?.conversions ? parseInt(campaign.conversions) : 0,
+        meta_conversion_rate: campaign?.conversion_rate ? parseFloat(campaign.conversion_rate) : 0.0,
+        meta_start_date: campaign?.date_start ? new Date(campaign.date_start).toISOString() : null,
+        meta_end_date: campaign?.date_stop ? new Date(campaign.date_stop).toISOString() : null
+    }));
+}
+
+function generateBigQueryInsertQuery(inputRows) {
+    const tableName = "`gofibo.meta.meta_ads_data`";
+    const keys = [
+        { name: "meta_campaign_id", type: "string" },
+        { name: "meta_campaign_name", type: "string" },
+        { name: "meta_impressions", type: "integer" },
+        { name: "meta_clicks", type: "integer" },
+        { name: "meta_spent", type: "float" },
+        { name: "meta_ctr", type: "float" },
+        { name: "meta_cpc", type: "float" },
+        { name: "meta_cpm", type: "float" },
+        { name: "meta_conversions", type: "integer" },
+        { name: "meta_conversion_rate", type: "float" },
+        { name: "meta_start_date", type: "timestamp" },
+        { name: "meta_end_date", type: "timestamp" }
+    ];
+
+    let query = `INSERT INTO ${tableName} (` + keys.map(key => key.name).join(", ") + ") VALUES ";
+
+    const valuesList = inputRows.map(inputRow => {
+        const values = keys.map(key => {
+            const value = inputRow[key.name];
+            if (value === "" || value === undefined || value === null) {
+                return "NULL";
+            }
+            if (typeof value === "object") {
+                return `'${JSON.stringify(value).replace(/'/g, "\\'")}'`;
+            }
+            switch (key.type) {
+                case "timestamp":
+                    return `'${value}'`;
+                case "string":
+                    return `'${String(value).replace(/'/g, "\\'")}'`;
+                case "float":
+                case "integer":
+                    return value;
+                default:
+                    return `'${value}'`;
+            }
+        });
+        return `(${values.join(", ")})`;
+    });
+
+    return query + valuesList.join(", ") + ";";
+}
+
+async function handler(req, res) {
+    try {
+        console.log("Fetching Facebook Ads Insights...");
+        const insights = await fetchInsights(FACEBOOK_API_URL, QUERY_PARAMS);
+        const formattedData = formatCampaignData({ data: insights });
+        const bigQueryInsertQuery = generateBigQueryInsertQuery(formattedData);
+        console.log("BigQuery Insert Query:", bigQueryInsertQuery);
+        res.status(200).json({ formattedData, bigQueryInsertQuery });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch insights" });
+    }
+}
+
+export { handler };

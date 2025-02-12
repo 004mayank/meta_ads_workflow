@@ -1,0 +1,26 @@
+{
+  "name": "meta-ads-data-pipeline",
+  "version": "1.0.0",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon autogen_index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@ssh.git.boltic.io:ea9a1a25-8577-4819-b4cd-12f4a753f47e/meta-ads-data-pipeline.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "csv-parse": "^5.5.6",
+    "csv-parser": "^3.0.0",
+    "express": "^4.19.2",
+    "nodemon": "^3.1.4",
+    "path": "^0.12.7",
+    "ssh2-sftp-client": "^11.0.0"
+  }
+}
