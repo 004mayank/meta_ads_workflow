@@ -8,6 +8,8 @@ const QUERY_PARAMS = {
     date_preset: "yesterday",
     access_token: "EAAP0hyO4pgYBOZBCCnqLdFuZBsZBIXjsR7kDdbOgf9A2T3GeYs7nu1g7krpWuVs9ezlUqGdMJGlQZB1vJi11rmHtAm9AZCMBC7XNlZA2cQI7FZB6IpOZC3Bth7E0fK4GTpdZCwFZBxy3XWbHkgzZBZB8jZCYxkqpuLKOj6CV7cdvaE1lFZCZBbznTveQEY4lvqM"
 };
+const tableName = "`gofibo.meta.meta_ads_data`";
+
 
 async function fetchInsights(url, params, accumulatedData = []) {
     try {
@@ -33,6 +35,10 @@ function formatCampaignData(result) {
         meta_campaign_id: campaign?.campaign_id || "unknown_campaign_id",
         meta_campaign_name: campaign?.campaign_name || "unknown_campaign_name",
         meta_impressions: campaign?.impressions ? parseInt(campaign.impressions) : 0,
+        meta_adset_id: campaign?.adset_id || "unknown_adset_id",
+        meta_adset_name: campaign?.adset_name || "unknown_adset_name",
+        meta_ad_id: campaign?.ad_id || "unknown_ad_id",
+        meta_ad_name: campaign?.ad_name || "unknown_ad_name",
         meta_clicks: campaign?.clicks ? parseInt(campaign.clicks) : 0,
         meta_spent: campaign?.spend ? parseFloat(campaign.spend) : 0.0,
         meta_ctr: campaign?.ctr ? parseFloat(campaign.ctr) : 0.0,
@@ -46,9 +52,12 @@ function formatCampaignData(result) {
 }
 
 function generateBigQueryInsertQuery(inputRows) {
-    const tableName = "`gofibo.meta.meta_ads_data`";
     const keys = [
         { name: "meta_campaign_id", type: "string" },
+        { name: "meta_adset_id", type: "string" },
+        { name: "meta_adset_name", type: "string" },
+        { name: "meta_ad_id", type: "string" },
+        { name: "meta_ad_name", type: "string" },
         { name: "meta_campaign_name", type: "string" },
         { name: "meta_impressions", type: "integer" },
         { name: "meta_clicks", type: "integer" },
