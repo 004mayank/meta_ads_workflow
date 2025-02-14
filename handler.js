@@ -44,6 +44,8 @@ function formatCampaignData(result) {
         meta_ctr: campaign?.ctr ? parseFloat(campaign.ctr) : 0.0,
         meta_cpc: campaign?.cpc ? parseFloat(campaign.cpc) : 0.0,
         meta_cpm: campaign?.cpm ? parseFloat(campaign.cpm) : 0.0,
+        meta_age: campaign?.age || "unknown",  // Extract age from breakdown
+        meta_gender: campaign?.gender || "unknown",  // Extract gender from breakdown
         meta_conversions: campaign?.conversions ? parseInt(campaign.conversions) : 0,
         meta_conversion_rate: campaign?.conversion_rate ? parseFloat(campaign.conversion_rate) : 0.0,
         meta_start_date: campaign?.date_start ? new Date(campaign.date_start).toISOString() : null,
@@ -65,6 +67,8 @@ function generateBigQueryInsertQuery(inputRows) {
         { name: "meta_ctr", type: "float" },
         { name: "meta_cpc", type: "float" },
         { name: "meta_cpm", type: "float" },
+        { name: "meta_age", type: "string" },
+        { name: "meta_gender", type: "string" },
         { name: "meta_conversions", type: "integer" },
         { name: "meta_conversion_rate", type: "float" },
         { name: "meta_start_date", type: "timestamp" },
@@ -105,17 +109,25 @@ async function handler(req, res) {
     try {
         console.log("Fetching Facebook Ads Insights...");
         const insights = await fetchInsights(FACEBOOK_API_URL, QUERY_PARAMS);
+
+        console.log("Raw API Response:", insights); // Debugging
+
         console.log("Formatting Facebook Ads Insights...");
         const formattedData = formatCampaignData({ data: insights });
+
+        console.log("Formatted Data:", formattedData); // Debugging
+
         console.log("Generating BQ Query...");
         const bigQueryInsertQuery = generateBigQueryInsertQuery(formattedData);
-        // console.log("BigQuery Insert Query:", bigQueryInsertQuery);
+        console.log("BigQuery Insert Query:", bigQueryInsertQuery);
 
-        console.log("Putting Data in BQ...")
+        console.log("Putting Data in BQ...");
         const webhookUrl = "https://asia-south1.api.boltic.io/service/webhook/temporal/v1.0/3c4a5387-c37e-4350-b364-f733b24933fa/workflows/execute/6031d8df-47be-4caf-9da1-3a20be7ec401/0.0.1/webhook";
-        const payload = { formattedData, bigQueryInsertQuery  };
+        const payload = { formattedData, bigQueryInsertQuery };
 
         await axios.post(webhookUrl, payload, { headers: { "Content-Type": "application/json" } });
+
+        console.log("Data successfully sent to BigQuery.");
     } catch (error) {
         console.error("Error:", error);
     }
