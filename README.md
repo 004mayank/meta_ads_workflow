@@ -117,5 +117,7 @@ cd meta-ads-data-pipeline
 npm install
 npm run dev
 
+_____FINISH____
+
 
 
